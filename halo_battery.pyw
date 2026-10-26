@@ -140,10 +140,11 @@ from providers import (AmInfinityProvider, AstroProvider, AsusProvider,  # noqa:
                        KeychronProvider, LamzuProvider, LofreeProvider, LogitechProvider,
                        LogitechCenturionProvider,
                        MchoseProvider, NintendoProvider, NzxtProvider, PlayStationProvider, PulsarProvider,
-                       RazerProvider, SteelSeriesEliteProvider, SteelSeriesProvider,
+                       RapooProvider, RazerProvider, SteelSeriesEliteProvider, SteelSeriesProvider,
                        WLmouseProvider, XInputProvider, SteamProvider)
 from providers.bluetooth import BluetoothWatcher  # noqa: E402
 from providers.jbl import PROBE_LISTEN_S as JBL_PROBE_LISTEN_S  # noqa: E402
+from providers.rapoo import PROBE_LISTEN_S as RAPOO_PROBE_LISTEN_S  # noqa: E402
 
 HEADSET_WORDS = ("blackshark", "kraken", "barracuda", "nari", "thresher", "headset",
                  "headphone", "earbud", "buds", "hammerhead", "airpods")
@@ -202,6 +203,7 @@ PROVIDER_LABELS = {
     "nzxt": "NZXT mice",
     "playstation": "PlayStation controllers",
     "pulsar": "Pulsar / ATK VXE mice",
+    "rapoo": "Rapoo VT7 (Gen-2)",
     "razer": "Razer mice and headsets",
     "steam": "Steam Controller (2025)",
     "steelseries": "SteelSeries",
@@ -211,8 +213,8 @@ PROVIDER_LABELS = {
 }
 
 
-def make_providers(jbl_listen_first: float = 0.0) -> list:
-    # jbl_listen_first: only --probe passes it, so its single poll waits for a JBL level
+def make_providers(jbl_listen_first: float = 0.0, rapoo_listen_first: float = 0.0) -> list:
+    # 仅 --probe 等待主动上报设备的首次电量, 常规轮询使用后台监听结果.
     return [RazerProvider(), AudezeProvider(), WLmouseProvider(), MchoseProvider(),
             HyperXAlpha2Provider(), HyperXCloud3Provider(), HyperXProvider(),
             KeychronProvider(), PulsarProvider(),
@@ -221,7 +223,7 @@ def make_providers(jbl_listen_first: float = 0.0) -> list:
             AsusProvider(), GWolvesProvider(), LofreeProvider(), AstroProvider(), CorsairProvider(),
             LamzuProvider(), AmInfinityProvider(),
             SteelSeriesEliteProvider(), LogitechCenturionProvider(), HyperXCloud3SProvider(), NzxtProvider(),
-            SteamProvider()]
+            SteamProvider(), RapooProvider(listen_first=rapoo_listen_first)]
 
 
 # ---------------------------------------------------------------- config
@@ -1435,6 +1437,10 @@ class App:
                 if ic is not None:
                     stopped.append(ic)
         log.info("device type %s: %s", name, "off" if name in off else "on")
+        if name in off:
+            for provider in self.providers:
+                if provider.name == name and isinstance(provider, RapooProvider):
+                    provider.close()
         for ic in stopped:
             # stop the icon from another thread: this runs in an icon's own menu callback
             threading.Thread(target=ic.stop, daemon=True).start()
@@ -2213,6 +2219,9 @@ class App:
 
     def quit(self):
         self.stop_evt.set()
+        for provider in self.providers:
+            if isinstance(provider, RapooProvider):
+                provider.close()
         self.history.save(force=True)
         if self.cfg.get("status_file"):
             try:
@@ -2280,7 +2289,8 @@ def probe():
             pass
     app = App.__new__(App)
     app.cfg = load_config()
-    app.providers = make_providers(jbl_listen_first=JBL_PROBE_LISTEN_S)
+    app.providers = make_providers(jbl_listen_first=JBL_PROBE_LISTEN_S,
+                                  rapoo_listen_first=RAPOO_PROBE_LISTEN_S)
     app.bt = BluetoothProvider()
     res = []
     for p in app.providers + [app.bt]:
@@ -2288,6 +2298,8 @@ def probe():
             p.switch_bluetooth = bool(app.cfg.get("playstation_full_mode", False))
         res += p.poll()
         print("\n".join(p.diagnostics()))
+        if isinstance(p, RapooProvider):
+            p.close()
     print("\n=== Summary ===")
     for s in res:
         print(describe(s))
