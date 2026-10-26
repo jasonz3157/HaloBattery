@@ -13,6 +13,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
   is covered by protocol tests and remains unverified on local hardware.
 
 ### Changed
+- Charging arcs on light taskbars now use the Windows battery icon's dark green
+  (`#107C10`) for better visibility.
 - **A tidier repository and a shorter README**: the app's modules moved into the `halo/`
   package (`halo_battery.pyw` stays the entry point), the .bat helpers into `scripts/`
   and CONTRIBUTING.md into `.github/`. The README now fits on one screen; the full list of
