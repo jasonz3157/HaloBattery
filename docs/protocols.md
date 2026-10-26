@@ -204,6 +204,34 @@ The vendor collection (usage page 0xFF01; the sibling 0xFF0B never answers): fea
 
 17-byte big-endian frames, report id 0x08: command 0x04 asks for the power details and answers with the level in byte 6, the on-cable flag in byte 7 and millivolts in bytes 8-9, with a checksum (0x55 minus the sum of the first 16 bytes) in byte 16. From andrewrabert/python-pulsar-mouse-tool, which also backs the "HID: pulsar" driver in review for Linux; the Kysona M600 and VXE Dragonfly R1 Pro use the same protocol but their ids are not claimed here. The ATK/VXE control panel of the OpenMouse project (@openmouse/protocol, drivers/atk) lists the R1 Pro Max receiver as 3554:f58a and reads it with the same command 0x04 frame, opening the collection with usage page 0xFF02 and usage 0x0002 - the R1 Pro Max dongle has five other interface-1 collections and the first of them is not the one that answers, so that collection is now preferred; a collection whose output report cannot carry the 17-byte frame is skipped, because Windows refuses that write and the refusal looks exactly like a device that is switched off. The framing is also in G-Wolves' own web driver (mouse.xyz), whose Compx class sends the same report-0x08 frame with a checksum of 0x55 minus the sum of the payload. The R1 Pro Max is confirmed on hardware on both of its transports, by the reporter of #87: this provider read the mouse on its stock 1 kHz receiver, on the `ff02:0002` collection, and on its cable the level agreed with ATK's own panel (hub.atk.pro) with the charging flag following the cable in both directions, so the cable id (3554:F58C) is read on hardware as well rather than only claimed from their report. A frame whose checksum does not match is refused rather than shown. The X2 CrazyLight Mini (#164) was tested by its reporter on both of its transports with this same frame - the dongle and the cable both answered command 0x04 with valid checksums, the cable reporting charging - so both of its ids (3710:5406, 3710:3414) are claimed from that report; the app-side reading was confirmed on their run of this branch in #164 - the dongle read 20 %, the same raw level as their own test, and the cable read while charging.
 
+### Rapoo VT7 (Gen-2)
+
+**Connection:** 2.4 GHz receiver (`24AE:1413`) or USB cable (`24AE:4613`)
+
+The mouse pushes input report `0x07` on the vendor collection `FF00:0002`.
+Only that measured status collection is opened; the mouse and keyboard
+input collections are left to Windows. Including the report ID at
+index 0, index 7 is the battery state (`1` on battery, `2` charging, `0` invalid)
+and index 8 is the percentage. Short frames, other report IDs, invalid states
+and levels above 100 are ignored. No output or feature reports are sent.
+
+Source: [RAPOO HUB](https://hub.rapoo.com/), the VT Generation 2 Series status
+layout documented and tested in [upstream PR #215](https://github.com/HeyOkay/HaloBattery/pull/215).
+On 2026-10-26, @jasonz3157's receiver returned
+`07 10 04 08 07 08 07 02 1b 00 03 01 00 13 46 01 02 02 c8`
+(27%, charging) on `FF00:0002`; later reports carried 36%, still charging,
+approximately three seconds apart, followed by 42% on battery. On battery,
+reports can be more than five seconds apart. As with the JBL provider, a
+background reader keeps the status collection open between polls. Normal polls
+return without waiting; `--probe` waits up to ten seconds for the first report.
+A reading stays online for thirty seconds, allowing short report gaps without
+flickering to asleep. After that, a silent receiver retains the last level on a
+greyed icon for up to five minutes from its last report, and input can trigger a new poll.
+Removing both connection IDs clears the reading. Both IDs share `rapoo:1413`,
+with a charging reading taking priority when both answer. **Verified on the
+receiver**; the USB ID and matching status layout come from PR #215's hardware
+reports and remain unverified locally. Other Rapoo devices are not claimed.
+
 ### Razer Basilisk V3 Pro, Razer Basilisk Ultimate
 
 **Connection:** 2.4 GHz receiver

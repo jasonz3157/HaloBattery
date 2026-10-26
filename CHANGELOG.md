@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Rapoo VT7 (Gen-2): battery percentage and charging state from passive HID
+  status reports over the `24AE:1413` receiver and `24AE:4613` USB connection,
+  sharing one tray icon. Confirmed on @jasonz3157's receiver; the USB connection
+  is covered by protocol tests and remains unverified on local hardware.
+
 ### Changed
 - **A tidier repository and a shorter README**: the app's modules moved into the `halo/`
   package (`halo_battery.pyw` stays the entry point), the .bat helpers into `scripts/`
