@@ -13,6 +13,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
   is covered by protocol tests and remains unverified on local hardware.
 
 ### Changed
+- Low-battery warning arcs and percentages on light taskbars now use the deeper
+  gold sampled from the supplied Windows battery reference (`#E4A738`).
 - Charging arcs on light taskbars now use the Windows battery icon's dark green
   (`#107C10`) for better visibility.
 - **A tidier repository and a shorter README**: the app's modules moved into the `halo/`

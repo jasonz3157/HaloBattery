@@ -25,6 +25,8 @@ S = SIZE * SS
 
 RED = (232, 17, 35)
 AMBER = (255, 185, 0)
+# 浅色任务栏参考 Windows 电池示意图的金黄色, #E4A738.
+AMBER_LIGHT_TASKBAR = (228, 167, 56)
 GREEN = (16, 196, 80)
 # 浅色任务栏匹配 Windows 电池图标的 #107C10.
 GREEN_LIGHT_TASKBAR = (16, 124, 16)
@@ -61,7 +63,7 @@ def arc_color(level: Optional[int], charging: bool, low: int, fg: tuple) -> tupl
     if level is not None and level <= thr:
         return RED
     if level is not None and level <= thr + 10:
-        return AMBER
+        return AMBER_LIGHT_TASKBAR if fg == (0, 0, 0) else AMBER
     return fg
 
 
