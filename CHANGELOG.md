@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-07
+
 ### Added
 - ATK X1 Ultimate 2.0: battery percentage and charging state over the
   `373B:11D9` 8K receiver and `373B:11E7` USB cable, sharing one tray icon.
@@ -18,6 +20,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
   is covered by protocol tests and remains unverified on local hardware.
 
 ### Changed
+- Update checks and automatic downloads now follow `jasonz3157/HaloBattery`,
+  so this fork keeps its device support when installing future updates.
 - Low-battery warning arcs and percentages on light taskbars now use the deeper
   gold sampled from the supplied Windows battery reference (`#E4A738`).
 - Charging arcs on light taskbars now use the Windows battery icon's dark green
@@ -1005,7 +1009,8 @@ First public release.
   in or unplugged.
 - Settings and the autostart entry are migrated from the app's earlier name, Battery Tray.
 
-[Unreleased]: ../../compare/v1.15.0...HEAD
+[Unreleased]: ../../compare/v1.16.0...HEAD
+[1.16.0]: ../../compare/v1.15.0...v1.16.0
 [1.15.0]: ../../compare/v1.14.0...v1.15.0
 [1.14.0]: ../../compare/v1.13.0...v1.14.0
 [1.13.0]: ../../compare/v1.12.0...v1.13.0

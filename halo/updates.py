@@ -45,7 +45,7 @@ from typing import Callable, List, Optional, Tuple
 
 log = logging.getLogger("halo_battery")
 
-REPO = "HeyOkay/HaloBattery"
+REPO = "jasonz3157/HaloBattery"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 TAG_URL = f"https://api.github.com/repos/{REPO}/releases/tags/v{{version}}"
 RELEASES_URL = f"https://github.com/{REPO}/releases/latest"
