@@ -7,6 +7,11 @@ and the project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- ATK X1 Ultimate 2.0: battery percentage and charging state over the
+  `373B:11D9` 8K receiver and `373B:11E7` USB cable, sharing one tray icon.
+  Uses the existing Pulsar/ATK protocol; covered by simulated HID tests.
+  ATK HUB identifies the locally connected mouse, but direct Halo Battery
+  readings on real hardware remain unverified.
 - Rapoo VT7 (Gen-2): battery percentage and charging state from passive HID
   status reports over the `24AE:1413` receiver and `24AE:4613` USB connection,
   sharing one tray icon. Confirmed on @jasonz3157's receiver; the USB connection

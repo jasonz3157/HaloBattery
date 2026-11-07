@@ -204,6 +204,38 @@ The vendor collection (usage page 0xFF01; the sibling 0xFF0B never answers): fea
 
 17-byte big-endian frames, report id 0x08: command 0x04 asks for the power details and answers with the level in byte 6, the on-cable flag in byte 7 and millivolts in bytes 8-9, with a checksum (0x55 minus the sum of the first 16 bytes) in byte 16. From andrewrabert/python-pulsar-mouse-tool, which also backs the "HID: pulsar" driver in review for Linux; the Kysona M600 and VXE Dragonfly R1 Pro use the same protocol but their ids are not claimed here. The ATK/VXE control panel of the OpenMouse project (@openmouse/protocol, drivers/atk) lists the R1 Pro Max receiver as 3554:f58a and reads it with the same command 0x04 frame, opening the collection with usage page 0xFF02 and usage 0x0002 - the R1 Pro Max dongle has five other interface-1 collections and the first of them is not the one that answers, so that collection is now preferred; a collection whose output report cannot carry the 17-byte frame is skipped, because Windows refuses that write and the refusal looks exactly like a device that is switched off. The framing is also in G-Wolves' own web driver (mouse.xyz), whose Compx class sends the same report-0x08 frame with a checksum of 0x55 minus the sum of the payload. The R1 Pro Max is confirmed on hardware on both of its transports, by the reporter of #87: this provider read the mouse on its stock 1 kHz receiver, on the `ff02:0002` collection, and on its cable the level agreed with ATK's own panel (hub.atk.pro) with the charging flag following the cable in both directions, so the cable id (3554:F58C) is read on hardware as well rather than only claimed from their report. A frame whose checksum does not match is refused rather than shown. The X2 CrazyLight Mini (#164) was tested by its reporter on both of its transports with this same frame - the dongle and the cable both answered command 0x04 with valid checksums, the cable reporting charging - so both of its ids (3710:5406, 3710:3414) are claimed from that report; the app-side reading was confirmed on their run of this branch in #164 - the dongle read 20 %, the same raw level as their own test, and the cable read while charging.
 
+### ATK X1 Ultimate 2.0
+
+**Connection:** 8K receiver (`373B:11D9`) or USB cable (`373B:11E7`).
+
+Uses the existing Pulsar/ATK provider's 17-byte report `0x08`, command `0x04`:
+`08 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 49`.
+The response supplies the percentage at index 6, the on-cable flag at index 7
+and big-endian millivolts at indices 8-9. The report ID, command, checksum and
+percentage range are validated by the existing parser.
+Only `FF02:0002` or `FF04:0002` collections with a compatible output report
+length are queried. Mouse and keyboard input collections are never queried.
+The cable is tried first, falling back to the receiver if it does not answer;
+both use `pulsar:373b11e7` to keep one icon across connection changes.
+An idle mouse retains its last reading, greyed out and eligible for an input
+wake, while either connection remains present. Removing both clears it.
+
+Source: [papelblume/atk-tool-plus](https://github.com/papelblume/atk-tool-plus),
+[`registry.go`](https://github.com/papelblume/atk-tool-plus/blob/a1a9e4663705bcc0d71ded33c7783b9b0371c1f2/registry.go)
+entries "ATK X1 Ultimate 2.0" and "Wireless mouse 8k dongle-L",
+[`protocol.go`](https://github.com/papelblume/atk-tool-plus/blob/a1a9e4663705bcc0d71ded33c7783b9b0371c1f2/protocol.go)
+and [`device.go`](https://github.com/papelblume/atk-tool-plus/blob/a1a9e4663705bcc0d71ded33c7783b9b0371c1f2/device.go).
+Its payload checksum makes the 16 payload bytes sum to `0x4D`; including the
+report ID `0x08` gives the `0x55` frame sum already used by this provider.
+The receiver is shared across ATK models; this entry covers the X1 pairing.
+No other ATK models or the newer `FF05` protocol are claimed by this addition.
+
+On 2026-11-07, the local HID interface list contained `373B:11D9` and ATK HUB
+displayed "ATK X1 Ultimate 2.0", 65%, connected wirelessly. The `11E7` cable
+ID also appeared in Windows' stored USB records. **Direct Halo Battery
+readings remain unverified on both transports:** the development sandbox
+denies opening HID handles. Tests use simulated replies, not a captured frame.
+
 ### Rapoo VT7 (Gen-2)
 
 **Connection:** 2.4 GHz receiver (`24AE:1413`) or USB cable (`24AE:4613`)

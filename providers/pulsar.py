@@ -7,8 +7,22 @@ Protocol from andrewrabert/python-pulsar-mouse-tool, which also backs the
   * 3554:f58f  ATK VXE R1 SE+ (wired)                373b:1085  ATK VXE R1 SE+ (2.4 GHz)
   * 3554:f58a  VXE R1 Pro Max (1 kHz dongle, #87)    3554:f58c  the same mouse on its cable
   * 3710:5406  Pulsar X2 CrazyLight Mini (2.4 GHz)   3710:3414  the same mouse on the cable
+  * 373b:11d9  ATK X1 Ultimate 2.0 (8 kHz dongle)   373b:11e7  the same mouse on the cable
   * the Kysona M600 and the VXE Dragonfly R1 Pro use the same protocol (their ids are
     not in the tool, so they are not claimed here).
+
+The X1 Ultimate 2.0 ids and protocol are listed in papelblume/atk-tool-plus
+(commit a1a9e4663705bcc0d71ded33c7783b9b0371c1f2),
+registry.go ("ATK X1 Ultimate 2.0", "Wireless mouse 8k dongle-L") and
+protocol.go / device.go (command 0x04, report 0x08, 16-byte payload summing to
+0x4D, equivalent to this file's 17-byte frame summing to 0x55). The 11d9
+receiver was present on @jasonz3157's PC on 2026-11-07; ATK HUB displayed the
+paired X1 Ultimate 2.0 at 65%. A direct Halo Battery HID reading has not yet
+been verified because the development sandbox denies opening the device.
+The receiver is shared by ATK models; this entry covers it paired to the X1.
+Only its ff02:0002 / ff04:0002 control collections may receive the query.
+The cable is queried first and both connections use one key, so charging does
+not create a second icon. No other ATK ids or protocol generations are claimed.
 
 The cable id (3554:f58c) is claimed too, from the reporter's second report in #87: the
 wired mouse lists the same eight collections as the receiver, and the panel below reads it
@@ -162,6 +176,9 @@ PIDS: Dict[int, Dict[int, str]] = {
     },
     0x373B: {
         0x1085: "ATK VXE R1 SE+ (2.4 GHz)",
+        # Cable before receiver: the first valid reading wins their shared key.
+        0x11E7: "ATK X1 Ultimate 2.0",
+        0x11D9: "ATK X1 Ultimate 2.0",
     },
     0x3770: {
         0x0200: "Hitscan Hyperlight (2.4 GHz)",
@@ -172,6 +189,13 @@ PIDS: Dict[int, Dict[int, str]] = {
         0x3414: "Pulsar X2 CrazyLight Mini (wired)",
     },
 }
+
+ATK_X1_VID = 0x373B
+ATK_X1_WIRED = 0x11E7
+ATK_X1_RECEIVER = 0x11D9
+ATK_X1_PIDS = {ATK_X1_WIRED, ATK_X1_RECEIVER}
+ATK_X1_KEY = "pulsar:373b11e7"
+ATK_X1_CONTROLS = {(0xFF02, 0x0002), (0xFF04, 0x0002)}
 
 
 def checksum(payload: List[int]) -> int:
@@ -301,7 +325,20 @@ class PulsarProvider(Provider):
                 if not mine:
                     continue
                 key = f"pulsar:{vid:04x}{pid:04x}"
+                is_x1 = vid == ATK_X1_VID and pid in ATK_X1_PIDS
+                if is_x1:
+                    key = ATK_X1_KEY
                 present.add(key)
+                if key in found:
+                    continue
+                if is_x1:
+                    mine = [d for d in mine if
+                            (d.get("usage_page"), d.get("usage")) in ATK_X1_CONTROLS
+                            and output_length(d["path"]) in (None, PAYLOAD_LEN)]
+                    if not mine:
+                        self._diag.append(f"[Pulsar] pid={vid:04x}:{pid:04x}: "
+                                          "no compatible ATK control collection; nothing sent")
+                        continue
                 d = self._pick(mine)
                 if d is None:
                     continue
