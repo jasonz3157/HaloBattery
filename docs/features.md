@@ -9,7 +9,7 @@
 - **Colour**: follows the taskbar (white on a dark bar, black on a light one). With [MyDockFinder](https://store.steampowered.com/app/1787090/MyDockFinder/) running it follows its top menu bar instead. With a transparent taskbar (e.g. TranslucentTB) pick **Icon colour → White** or **Black**.
 - **Amber**: close to the alert threshold. **Red**: at or below it.
 - **Green and breathing**: charging - the animation can be turned off in the menu, leaving a plain green arc.
-- **Translucent**: the mouse is asleep and keeps its last level for 5 minutes. A device that is switched off leaves the tray and comes back when it is switched on.
+- **Asleep / disconnected**: the ring keeps the last known battery level and its colour; only the centre pictogram (or percentage number) turns grey. The tooltip marks it as a last known value. Without a known level, the ring stays empty and dim. How long a sleeping device stays in the tray depends on its provider; Pulsar / ATK / VXE mice keep their last reading while the receiver remains connected.
 
 The low battery notification fires once, and again only after the device has been charged.
 

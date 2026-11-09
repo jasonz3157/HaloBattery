@@ -24,7 +24,7 @@ ROWS = [("Headset", "headset"), ("Mouse", "mouse"), ("Keyboard", "keyboard"),
 # (header, level, charging, online)
 COLUMNS = [("100%", 100, False, True), ("75%", 75, False, True), ("50%", 50, False, True),
            ("30%", 30, False, True), ("15%", 15, False, True), ("Charging", 60, True, True),
-           ("Asleep", None, False, False)]
+           ("Asleep", 60, False, False)]
 
 BIG, SMALL = 64, 24            # a large icon, and the tray size at 150% scaling
 X0, PITCH = 134, 92            # left edge of the first large icon, column pitch

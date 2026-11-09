@@ -8,7 +8,8 @@ Colours follow the system battery icon: normal charge uses the taskbar colour
 (white on a dark taskbar, black on a light one), close to the threshold it is
 amber, at or below the threshold it is red, and while charging the arc is
 green and slowly "breathes" in brightness.
-Asleep / no link: the icon is translucent and has no arc.
+Asleep / no link: keep the last known level's arc; only the centre is
+translucent. Without a known level, the ring stays empty and dim.
 """
 from __future__ import annotations
 
@@ -253,6 +254,7 @@ def render(level: Optional[int], charging: bool, online: bool, low: int = 20,
         light_taskbar = taskbar_is_light()
     fg = (0, 0, 0) if light_taskbar else (255, 255, 255)
     active = online and (level is not None or charging)
+    ring_active = level is not None or active
     alpha = 255 if active else 110
 
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -262,10 +264,10 @@ def render(level: Optional[int], charging: bool, online: bool, low: int = 20,
     box = (_r(32 - R), _r(32 - R), _r(32 + R), _r(32 + R))
 
     # ring track
-    d.ellipse(box, outline=fg + (70 if active else 45,), width=_r(w))
+    d.ellipse(box, outline=fg + (70 if ring_active else 45,), width=_r(w))
 
     # charge arc
-    if active:
+    if ring_active:
         c = arc_color(level, charging, low, fg) + (int(255 * max(0.0, min(1.0, pulse))),)
         lvl = max(0, min(100, level)) if level is not None else None
         if lvl is None:

@@ -174,6 +174,15 @@ class RenderOnceTests(unittest.TestCase):
         self.ic.update(dev())
         self.assertEqual(self.calls, [False])
 
+    def test_a_sleeping_charging_device_keeps_a_static_ring(self):
+        sleeping = DeviceStatus("logitech:C15E09CD", "G502 LIGHTSPEED", 50, True,
+                                False, "logitech", kind="mouse")
+        self.ic.update(sleeping)
+        self.assertEqual(self.calls, [False])
+        self.assertIsNone(self.ic.frames)
+        self.ic.update(self.charging(50))
+        self.assertEqual(len(self.ic.frames), hb.icons.BREATH_FRAMES)
+
     def test_the_other_colour_is_drawn_once_on_the_first_flip(self):
         self.ic.update(self.charging(50))
         dark = self.ic.frames
