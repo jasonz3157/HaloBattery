@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-11-09
+
 ### Changed
 - Sleeping devices keep the last known battery ring and its colour. Only the
   centre pictogram (or percentage number) turns grey; an unknown battery level
@@ -1014,7 +1016,8 @@ First public release.
   in or unplugged.
 - Settings and the autostart entry are migrated from the app's earlier name, Battery Tray.
 
-[Unreleased]: ../../compare/v1.16.0...HEAD
+[Unreleased]: ../../compare/v1.16.1...HEAD
+[1.16.1]: ../../compare/v1.16.0...v1.16.1
 [1.16.0]: ../../compare/v1.15.0...v1.16.0
 [1.15.0]: ../../compare/v1.14.0...v1.15.0
 [1.14.0]: ../../compare/v1.13.0...v1.14.0
