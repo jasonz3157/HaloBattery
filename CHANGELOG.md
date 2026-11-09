@@ -6,6 +6,11 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Sleeping devices keep the last known battery ring and its colour. Only the
+  centre pictogram (or percentage number) turns grey; an unknown battery level
+  still has an empty, dim ring. Charging animation remains paused while asleep.
+
 ## [1.16.0] - 2026-11-07
 
 ### Added
