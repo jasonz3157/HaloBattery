@@ -43,6 +43,42 @@ class TrayInkTests(unittest.TestCase):
                         self.assertTrue(neutral)
                         self.assertLessEqual(max(neutral), icons.NEUTRAL_OPACITY)
 
+    def test_sleep_keeps_every_ring_pixel_and_greys_the_pictogram(self):
+        styles = (("mouse", "default"), ("gamepad", "xbox"),
+                  ("gamepad", "playstation"), ("gamepad", "nintendo"))
+        for light in (False, True):
+            for level in (None, 0, 10, 25, 65, 100):
+                ring = icons.render(level, False, True, light_taskbar=light, size=64)
+                points = [(x, y) for y in range(ring.height) for x in range(ring.width)]
+                ring_pixels = [ring.getpixel(point) for point in points]
+                for badge, brand in styles:
+                    with self.subTest(light=light, level=level, badge=badge, brand=brand):
+                        options = dict(light_taskbar=light, size=64, badge=badge,
+                                       brand=brand, brand_color=True)
+                        awake = icons.render(level, False, True, **options)
+                        asleep = icons.render(level, False, False, **options)
+                        self.assertEqual(awake.getchannel("A").tobytes(),
+                                         asleep.getchannel("A").tobytes())
+                        asleep_pixels = [asleep.getpixel(point) for point in points]
+                        self.assertEqual(
+                            [pixel for pixel, original in zip(asleep_pixels, ring_pixels)
+                             if original[3]],
+                            [pixel for pixel in ring_pixels if pixel[3]],
+                        )
+                        centre = {pixel[:3] for pixel, original in zip(asleep_pixels, ring_pixels)
+                                  if pixel[3] and not original[3]}
+                        self.assertEqual(centre, {(128, 128, 128)})
+
+    def test_sleep_keeps_percentage_and_badge_free_icons_identical(self):
+        for light in (False, True):
+            for level in (0, 10, 25, 65, 100):
+                for text in ("", str(level)):
+                    with self.subTest(light=light, level=level, text=text):
+                        options = dict(light_taskbar=light, text=text, size=20)
+                        awake = icons.render(level, False, True, **options)
+                        asleep = icons.render(level, False, False, **options)
+                        self.assertEqual(awake.tobytes(), asleep.tobytes())
+
     def test_brand_colors_keep_exact_pixels_and_dim_alpha(self):
         for foreground in ((0, 0, 0), (255, 255, 255)):
             for brand in ('xbox', 'playstation', 'nintendo'):
