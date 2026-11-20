@@ -6,6 +6,13 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-11-20
+
+### Changed
+
+- A sleeping device shows a grey centre pictogram. The battery ring keeps its
+  last known level and colour.
+
 ## [1.17.0] - 2026-11-12
 
 First combined upstream release after the community fork. Includes six interface
@@ -1261,7 +1268,8 @@ First public release.
   in or unplugged.
 - Settings and the autostart entry are migrated from the app's earlier name, Battery Tray.
 
-[Unreleased]: ../../compare/v1.17.0...HEAD
+[Unreleased]: ../../compare/v1.17.1...HEAD
+[1.17.1]: ../../compare/v1.17.0...v1.17.1
 [1.17.0]: ../../compare/v1.15.0...v1.17.0
 [1.15.0]: ../../compare/v1.14.0...v1.15.0
 [1.14.0]: ../../compare/v1.13.0...v1.14.0

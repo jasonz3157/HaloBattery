@@ -7,7 +7,7 @@ Colours follow the system battery icon: normal charge uses the taskbar colour
 (white on a dark taskbar, black on a light one), close to the threshold it is
 amber, at or below the threshold it is red. Known-level charging slowly
 "breathes" in green; unknown-level charging rotates a steady green arc.
-Asleep / no link: the icon is translucent and has no arc.
+Asleep / no link: the device pictogram is grey and the ring shows the last known level.
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ S = SIZE * SS
 RED = (232, 17, 35)
 AMBER = (255, 185, 0)
 GREEN = (16, 196, 80)
+SLEEP_GRAY = (128, 128, 128)
 CLEAR = (0, 0, 0, 0)
 NEUTRAL_OPACITY = 230       # approximately 90%, like Windows' primary tray ink
 
@@ -295,8 +296,9 @@ def render(level: Optional[int], charging: bool, online: bool, low: int = 20,
     if light_taskbar is None:
         light_taskbar = taskbar_is_light()
     fg = (0, 0, 0) if light_taskbar else (255, 255, 255)
-    active = online and (level is not None or charging or force_active)
-    alpha = 255 if active else 110
+    # A cached reading uses the same ring as a live reading.
+    ring_active = level is not None or (online and (charging or force_active))
+    alpha = 255 if ring_active else 110
 
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -305,10 +307,10 @@ def render(level: Optional[int], charging: bool, online: bool, low: int = 20,
     box = (_r(32 - R), _r(32 - R), _r(32 + R), _r(32 + R))
 
     # ring track
-    d.ellipse(box, outline=fg + (neutral_alpha(70 if active else 45),), width=_r(w))
+    d.ellipse(box, outline=fg + (neutral_alpha(70 if ring_active else 45),), width=_r(w))
 
     # charge arc
-    if active:
+    if ring_active:
         color = arc_color(level, charging, low, fg)
         opacity = NEUTRAL_OPACITY if color == fg else 255
         c = color + (int(opacity * max(0.0, min(1.0, pulse))),)
@@ -344,16 +346,20 @@ def render(level: Optional[int], charging: bool, online: bool, low: int = 20,
     # the percentage, or else the device pictogram
     kind = KINDS.get(badge)
     if text:
-        col = arc_color(level, False, low, fg) if active else fg
+        col = arc_color(level, False, low, fg) if ring_active else fg
         _number(d, text, col + (neutral_alpha(alpha) if col == fg else alpha,))
     # Area sampling retains the one-logical-pixel stroke's coverage. LANCZOS
     # overshoot clips negative alpha to zero, making small rings visibly heavier.
     sampling = Image.Resampling.BOX if size < S else Image.Resampling.LANCZOS
     img = img.resize((size, size), sampling)
     if kind and not text:
-        img = Image.alpha_composite(img, icon_artwork.glyph(
-            kind, size, fg, alpha, brand, brand_color,
-            foreground_opacity=NEUTRAL_OPACITY))
+        glyph = icon_artwork.glyph(kind, size, fg, alpha, brand, brand_color,
+                                   foreground_opacity=NEUTRAL_OPACITY)
+        if not online:
+            grey_glyph = Image.new("RGBA", glyph.size, SLEEP_GRAY)
+            grey_glyph.putalpha(glyph.getchannel("A"))
+            glyph = grey_glyph
+        img = Image.alpha_composite(img, glyph)
     return img
 
 
@@ -373,7 +379,8 @@ def charging_frames(level: Optional[int], online: bool, low: int = 20,
                     light_taskbar: Optional[bool] = None, badge: str = "", text: str = "", *,
                     size: int = SIZE, brand: str = "default", brand_color: bool = False):
     """A breathing known-level arc or rotating unknown-level arc, cached as one cycle."""
-    return [render(level, True, online, low, light_taskbar, badge, breath_level(i / BREATH_FRAMES),
+    return [render(level, True, online, low, light_taskbar, badge,
+                   breath_level(i / BREATH_FRAMES) if online else 1.0,
                    text=text, size=size, brand=brand, brand_color=brand_color,
                    animation_phase=i / BREATH_FRAMES if level is None else 0.0)
             for i in range(BREATH_FRAMES)]
