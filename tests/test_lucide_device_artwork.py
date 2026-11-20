@@ -118,10 +118,11 @@ class NewLucideArtworkTests(unittest.TestCase):
                     settings = dict(light_taskbar=light, size=size)
                     fg = (0,0,0) if light else (255,255,255)
                     for level, charging, online, forced, alpha in (
-                            (60,False,True,False,255), (60,False,False,False,110),
+                            (60,False,True,False,255), (60,False,False,False,255),
                             (None,False,True,False,110), (None,False,True,True,255)):
                         track = icons.render(level,charging,online,force_active=forced,**settings)
-                        glyph = icon_artwork.glyph(kind,size,fg,alpha,
+                        glyph_fg = fg if online else (128, 128, 128)
+                        glyph = icon_artwork.glyph(kind,size,glyph_fg,alpha,
                                                   foreground_opacity=icons.NEUTRAL_OPACITY)
                         actual = icons.render(level,charging,online,badge=kind,force_active=forced,**settings)
                         self.assertEqual(actual.tobytes(), Image.alpha_composite(track,glyph).tobytes())

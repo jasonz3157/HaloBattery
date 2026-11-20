@@ -66,7 +66,7 @@ class MicrophoneArtworkTests(unittest.TestCase):
     def test_active_dim_unknown_and_forced_active_use_the_new_mask(self):
         for level, charging, online, forced, alpha in (
                 (60, False, True, False, 255),
-                (60, False, False, False, 110),
+                (60, False, False, False, 255),
                 (None, False, True, False, 110),
                 (None, True, True, False, 255),
                 (None, False, False, True, 110),
@@ -74,7 +74,8 @@ class MicrophoneArtworkTests(unittest.TestCase):
             with self.subTest(level=level, charging=charging, online=online, forced=forced):
                 settings = dict(light_taskbar=False, size=32, force_active=forced)
                 track = icons.render(level, charging, online, **settings)
-                glyph = icon_artwork.glyph('microphone', 32, (255, 255, 255), alpha,
+                fg = (255, 255, 255) if online else (128, 128, 128)
+                glyph = icon_artwork.glyph('microphone', 32, fg, alpha,
                                           foreground_opacity=icons.NEUTRAL_OPACITY)
                 expected = Image.alpha_composite(track, glyph)
                 actual = icons.render(level, charging, online, badge='microphone', **settings)

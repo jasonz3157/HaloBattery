@@ -49,7 +49,8 @@ class TrayInkTests(unittest.TestCase):
         for light in (False, True):
             for level in (None, 0, 10, 25, 65, 100):
                 ring = icons.render(level, False, True, light_taskbar=light, size=64)
-                ring_pixels = list(ring.getdata())
+                points = [(x, y) for y in range(ring.height) for x in range(ring.width)]
+                ring_pixels = [ring.getpixel(point) for point in points]
                 for badge, brand in styles:
                     with self.subTest(light=light, level=level, badge=badge, brand=brand):
                         options = dict(light_taskbar=light, size=64, badge=badge,
@@ -58,12 +59,13 @@ class TrayInkTests(unittest.TestCase):
                         asleep = icons.render(level, False, False, **options)
                         self.assertEqual(awake.getchannel("A").tobytes(),
                                          asleep.getchannel("A").tobytes())
+                        asleep_pixels = [asleep.getpixel(point) for point in points]
                         self.assertEqual(
-                            [pixel for pixel, original in zip(asleep.getdata(), ring_pixels)
+                            [pixel for pixel, original in zip(asleep_pixels, ring_pixels)
                              if original[3]],
                             [pixel for pixel in ring_pixels if pixel[3]],
                         )
-                        centre = {pixel[:3] for pixel, original in zip(asleep.getdata(), ring_pixels)
+                        centre = {pixel[:3] for pixel, original in zip(asleep_pixels, ring_pixels)
                                   if pixel[3] and not original[3]}
                         self.assertEqual(centre, {(128, 128, 128)})
 
