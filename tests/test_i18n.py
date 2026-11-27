@@ -360,10 +360,10 @@ class PresentationTests(unittest.TestCase):
     def test_phone_link_tooltip_shows_charging_only_when_reported(self):
         status = hb.DeviceStatus("phone_link:test", "Find X9 Pro", 99, False, True,
                                  "phone_link", kind="phone", charging_known=False)
-        self.assertEqual(hb.describe(status, language="zh_CN"), "Find X9 Pro: 99%")
+        self.assertEqual(hb.describe(status, language="zh-CN"), "Find X9 Pro: 99%")
 
         status.charging = status.charging_known = True
-        self.assertEqual(hb.describe(status, language="zh_CN"), "Find X9 Pro: 99%，充电中")
+        self.assertEqual(hb.describe(status, language="zh-CN"), "Find X9 Pro: 99%，充电中")
 
     def test_real_device_icon_uses_selected_language_during_a_poll(self):
         icon = test_hide_rename.MenuRefreshTests().make_icon()
