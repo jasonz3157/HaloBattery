@@ -243,8 +243,8 @@ The card parser recognizes the observed English and Simplified Chinese status
 formats independently of HaloBattery's UI language. The Chinese profile accepts
 the connected header, remaining-percentage labels and explicit charging suffix
 observed in the Windows cache. Other card formats are refused.
-Unknown charger state is shown as unknown and cannot trigger battery alerts or
-use-time estimates. See [source and verification limits](protocols.md#phone-link-selected-cache).
+If charging is unconfirmed, the current reading shows only the percentage.
+Unconfirmed charging states cannot trigger battery alerts or use-time estimates. See [source and verification limits](protocols.md#phone-link-selected-cache).
 
 Ongoing updates depend on Phone Link's background synchronization. HaloBattery
 does not keep it alive or refresh it by opening its window. If Phone Link omits
