@@ -114,9 +114,13 @@ class PreviewGlyphTests(unittest.TestCase):
                         options=dict(size=32,ring_style=style,light_taskbar=light,
                                      force_active=paused,pulse=.4,animation_phase=.25)
                         ring=icons.render(level,charging,online,**options)
-                        active=online and (level is not None or charging or paused)
+                        active=level is not None or (online and (charging or paused))
                         if paused:active=True
                         layer=glyph.render(32,fg,255 if active else 110)
+                        if not online:
+                            grey=Image.new('RGBA',layer.size,(128,128,128))
+                            grey.putalpha(layer.getchannel('A'))
+                            layer=grey
                         expected=Image.alpha_composite(ring,layer)
                         actual=icons.render(level,charging,online,custom_glyph=glyph,**options)
                         if style == 'thin':
@@ -126,8 +130,9 @@ class PreviewGlyphTests(unittest.TestCase):
                                 for x in range(32):
                                     if math.hypot(x+.5-16,y+.5-16) >= 13:
                                         self.assertEqual(actual.getpixel((x,y)),ring.getpixel((x,y)))
-                            # The mixed fixture's original blue must survive.
-                            self.assertTrue(any((r,g,b)==(47,136,255) and a>0
+                            # The centre follows the fork's sleep colour rule.
+                            color=(47,136,255) if online else (128,128,128)
+                            self.assertTrue(any((r,g,b)==color and a>0
                                                 for r,g,b,a in actual.getdata()))
 
     def test_digest_is_stable_bounded_and_images_are_owned(self):
