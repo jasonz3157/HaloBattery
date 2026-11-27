@@ -82,83 +82,18 @@ jobs:
               raise SystemExit("Release CI did not finish in time")
           PY
 
-      - name: Download the verified Windows build
-        run: gh run download "$CI_RUN_ID" --repo "$GH_REPO" --name "HaloBattery-check-$SOURCE_SHA" --dir build-files
+      - name: Download the existing draft assets for verification
+        run: gh release download v1.18.0 --repo "$GH_REPO" --dir downloaded-assets
 
-      - name: Prepare portable ZIP, installer and checksums
+      - name: Verify draft source, downloaded files and checksums
         run: |
           python3 - <<'PY'
           import hashlib
           import json
-          from pathlib import Path
-          import shutil
-          import zipfile
-
-          build = Path("build-files")
-          app = build / "HaloBattery"
-          setup = build / "HaloBattery-1.18.0-setup.exe"
-          required = [app / "HaloBattery.exe",
-                      app / "_internal/settings-ui/HaloBattery.Settings.exe", setup]
-          for path in required:
-              if not path.is_file() or path.stat().st_size == 0:
-                  raise SystemExit(f"Missing or empty build artifact {path}")
-          if any(path.is_symlink() for path in build.rglob("*")):
-              raise SystemExit("Build artifact contains a symbolic link")
-          output = Path("release-assets")
-          output.mkdir()
-          archive = output / "HaloBattery-1.18.0.zip"
-          with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
-              for path in sorted(app.rglob("*")):
-                  if path.is_file():
-                      zipped.write(path, path.relative_to(build).as_posix())
-          shutil.copyfile(setup, output / setup.name)
-          sums = []
-          for path in (archive, output / setup.name):
-              digest = hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
-              sums.append(f"{digest} *{path.name}\n")
-          (output / "SHA256SUMS.txt").write_text("".join(sums), encoding="ascii")
-          manifest = {}
-          for path in output.iterdir():
-              with path.open("rb") as stream:
-                  digest = hashlib.file_digest(stream, "sha256").hexdigest()
-              manifest[path.name] = {"size": path.stat().st_size, "digest": "sha256:" + digest}
-          Path("expected-assets.json").write_text(json.dumps(manifest), encoding="utf-8")
-          notes = """### Changes
-
-          - Update to upstream Halo Battery 1.18.0.
-          - Keep the fork's sleeping-device display. Only the centre device pictogram turns grey, and the battery ring retains its last known level and colour.
-          - Apply the sleep display to outline, filled and custom pictograms and both ring thicknesses.
-
-          ### Downloads
-
-          - HaloBattery-1.18.0-setup.exe installs the application.
-          - HaloBattery-1.18.0.zip contains the portable application. Extract the complete folder before running HaloBattery.exe.
-          - SHA256SUMS.txt contains the SHA-256 checksums.
-
-          The Windows executables are unsigned.
-
-          Built from main commit 32b8fc5f169d3f9e62fb5fca80c8850c425d66b6 after successful Windows compatibility, unit, startup and packaging checks.
-          """
-          import textwrap
-          Path("release_notes.md").write_text(textwrap.dedent(notes), encoding="utf-8")
-          PY
-
-      - name: Create the exact-commit tag and draft release
-        run: |
-          set -euo pipefail
-          current=$(gh api "repos/$GH_REPO/branches/main" --jq '.commit.sha')
-          test "$current" = "$SOURCE_SHA"
-          gh api "repos/$GH_REPO/git/refs" -f ref=refs/tags/v1.18.0 -f sha="$SOURCE_SHA"
-          gh release create v1.18.0 --repo "$GH_REPO" --verify-tag --draft --title v1.18.0 --notes-file release_notes.md
-          gh release upload v1.18.0 release-assets/HaloBattery-1.18.0.zip release-assets/HaloBattery-1.18.0-setup.exe release-assets/SHA256SUMS.txt --repo "$GH_REPO"
-
-      - name: Verify uploaded asset digests before publication
-        run: |
-          python3 - <<'PY'
-          import json
           import os
           from pathlib import Path
           import urllib.request
+          import zipfile
 
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json"}
@@ -166,24 +101,48 @@ jobs:
           def fetch(path):
               with urllib.request.urlopen(urllib.request.Request(base + path, headers=headers), timeout=30) as response:
                   return json.load(response)
-          release = fetch("/releases/tags/v1.18.0")
-          if not release["draft"] or release["prerelease"]:
-              raise SystemExit("Expected a new stable draft release")
+          release = fetch("/releases/460082056")
+          if release["tag_name"] != "v1.18.0" or not release["draft"] or release["prerelease"]:
+              raise SystemExit("Expected the existing v1.18.0 stable draft")
           if fetch("/git/ref/tags/v1.18.0")["object"]["sha"] != os.environ["SOURCE_SHA"]:
               raise SystemExit("Release tag points to the wrong commit")
-          expected = json.loads(Path("expected-assets.json").read_text(encoding="utf-8"))
+          names = {"HaloBattery-1.18.0.zip", "HaloBattery-1.18.0-setup.exe", "SHA256SUMS.txt"}
           actual = {asset["name"]: asset for asset in release["assets"]}
-          if set(actual) != set(expected):
-              raise SystemExit("Release assets do not match the expected file set")
-          for name, proof in expected.items():
+          if set(actual) != names:
+              raise SystemExit("Unexpected draft asset set")
+          root = Path("downloaded-assets")
+          if {path.name for path in root.iterdir()} != names:
+              raise SystemExit("Unexpected downloaded files")
+          digests = {}
+          for name in names:
+              path = root / name
+              with path.open("rb") as stream:
+                  digest = hashlib.file_digest(stream, "sha256").hexdigest()
               asset = actual[name]
-              if (asset["state"] != "uploaded" or asset["size"] != proof["size"]
-                      or asset["digest"] != proof["digest"]):
-                  raise SystemExit("Uploaded file verification failed for " + name)
-          print("All three uploaded assets match their local SHA-256 digests")
+              if (asset["state"] != "uploaded" or asset["size"] != path.stat().st_size
+                      or asset["digest"] != "sha256:" + digest):
+                  raise SystemExit("Uploaded asset digest mismatch for " + name)
+              digests[name] = digest
+          checksums = {}
+          for line in (root / "SHA256SUMS.txt").read_text(encoding="ascii").splitlines():
+              digest, name = line.split(" *", 1)
+              if name in checksums:
+                  raise SystemExit("Duplicate checksum entry")
+              checksums[name] = digest
+          if checksums != {name: digests[name] for name in names if name != "SHA256SUMS.txt"}:
+              raise SystemExit("Release checksums do not match the installer and portable ZIP")
+          with zipfile.ZipFile(root / "HaloBattery-1.18.0.zip") as archive:
+              required = {"HaloBattery/HaloBattery.exe",
+                          "HaloBattery/_internal/settings-ui/HaloBattery.Settings.exe",
+                          "HaloBattery/_internal/halo/build-info.json"}
+              if not required.issubset(archive.namelist()):
+                  raise SystemExit("Portable ZIP is incomplete")
+              metadata = json.loads(archive.read("HaloBattery/_internal/halo/build-info.json"))
+              if metadata != {"schema": 1, "channel": "stable", "version": "1.18.0"}:
+                  raise SystemExit("Portable ZIP has unexpected version or channel metadata")
+          print("Verified all three draft assets, checksums and portable application metadata")
           PY
 
-      - name: Publish as the latest release
+      - name: Publish the verified draft as the latest release
         run: |
-          gh release edit v1.18.0 --repo "$GH_REPO" --draft=false --latest
-          gh release view v1.18.0 --repo "$GH_REPO" --json tagName,isDraft,isPrerelease,url
+          gh api --method PATCH "repos/$GH_REPO/releases/460082056" -F draft=false -f make_latest=true --jq '{tag: .tag_name, draft: .draft, url: .html_url}'
