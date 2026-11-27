@@ -1659,13 +1659,14 @@ estimates are suppressed. Only explicit charging is accepted as known by this
 initial profile. Unsupported status text is not guessed or scanned for arbitrary
 percentages elsewhere in the card.
 
-**Simplified Chinese evidence:** on 2026-11-27, the fork owner's Windows 11
-companion cache used `<device> - 已连接到你的电脑` in the selected header and
-`电池电量剩余 71%` in both status fields; a later update reported 70%.
+**Simplified Chinese cache observations on 2026-11-27**
+
+The fork owner's Windows 11 companion cache used `<device> - 已连接到你的电脑` in the selected header and
+`电池电量剩余 71%` in both status fields. A later update reported 70%.
 The selected Android entry had a unique per-device UUID. A later charging
 observation reported `电池电量剩余 72%，正在充电` in both fields. Synthetic tests
-use replacement names and UUIDs. Bare percentage labels keep charging unknown;
-the observed explicit charging suffix reports charging.
+use replacement names and UUIDs. Bare percentage labels keep charging unknown.
+The observed explicit charging suffix reports charging.
 
 **Local field checks:** a powered-off tablet still had an old connected/46% card;
 that percentage was correctly withheld. After the user connected an S24+, its

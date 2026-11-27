@@ -10,8 +10,8 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 - Read Simplified Chinese Phone Link companion caches, including the selected
   device's connected header, remaining battery percentage and explicit charging
-  status. Retain the existing
-  device-identity, conflicting-reading and stale-cache checks.
+  status. Retain the existing device identity, conflicting reading and stale
+  cache checks.
 
 ## [1.18.0] - 2026-11-27
 
