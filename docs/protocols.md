@@ -1619,12 +1619,15 @@ Two exact files under `%LOCALAPPDATA%\Packages\Microsoft.YourPhone_8wekyb3d8bbwe
 are read, with size/structure limits and at most one retry for a concurrent update:
 
 - `LocalState\StartMenu\StartMenuCompanion.json`: root `speak` identifies the
-  selected device. The observed 1.26092.119.0 profile accepts the exact English
-  suffix ` - Connected to your PC`. Only the header battery row is examined:
+  selected device. The observed English profile accepts the exact suffix
+  ` - Connected to your PC`; the Simplified Chinese profile accepts
+  ` - 已连接到你的电脑`. Only the header battery row is examined:
   `body[5].columns[4].items[0].tooltip` (Image) and
   `body[5].columns[6].items[0].tooltip` (Container). Both must agree on the
   complete `Battery <0..100>% remaining` phrase, optionally followed by
-  `, charging`. Other text, notification sections and media are not used.
+  `, charging`, or the observed `电池电量剩余 <0..100>%` label, optionally
+  followed by `，正在充电`. Both status fields must agree on the level and
+  charging state. Other text, notification sections and media are not used.
 - `LocalCache\DeviceMetadataStorage.json`: the selected name must uniquely
   match a linked Android/iOS entry's nested `Metadata.Metadata.DisplayName`.
   `Metadata.Id` is its per-device UUID; the outer `DeviceMetadatas` group key
@@ -1655,6 +1658,14 @@ does not prove charger state: charging stays unknown and alerts/use-time
 estimates are suppressed. Only explicit charging is accepted as known by this
 initial profile. Unsupported status text is not guessed or scanned for arbitrary
 percentages elsewhere in the card.
+
+**Simplified Chinese evidence:** on 2026-11-27, the fork owner's Windows 11
+companion cache used `<device> - 已连接到你的电脑` in the selected header and
+`电池电量剩余 71%` in both status fields; a later update reported 70%.
+The selected Android entry had a unique per-device UUID. A later charging
+observation reported `电池电量剩余 72%，正在充电` in both fields. Synthetic tests
+use replacement names and UUIDs. Bare percentage labels keep charging unknown;
+the observed explicit charging suffix reports charging.
 
 **Local field checks:** a powered-off tablet still had an old connected/46% card;
 that percentage was correctly withheld. After the user connected an S24+, its

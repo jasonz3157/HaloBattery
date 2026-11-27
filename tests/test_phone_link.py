@@ -36,6 +36,15 @@ def card(level=46, *, name="Tablet", charging=False):
                  "url": "https://private.invalid/DO-NOT-READ"}]}
 
 
+def chinese_card(level=70, *, name="测试手机", charging=False):
+    value = card(level, name=name)
+    value["speak"] = name + " - 已连接到你的电脑"
+    label = f"电池电量剩余 {level}%" + ("，正在充电" if charging else "")
+    for index in (4, 6):
+        value["body"][5]["columns"][index]["items"][0]["tooltip"] = label
+    return value
+
+
 def snapshot(value=None, identities=None, modified=NOW):
     return P.CacheSnapshot(value if value is not None else card(),
                            identities if identities is not None else metadata(identity()), modified)
@@ -61,6 +70,107 @@ class PhoneLinkTests(unittest.TestCase):
         values, _ = self.poll(snapshot(card(100, charging=True)))
         self.assertTrue(values[0].charging)
         self.assertTrue(values[0].charging_known)
+
+    def test_simplified_chinese_identity_and_percentage(self):
+        for level in (0, 70, 100):
+            with self.subTest(level=level):
+                values, _ = self.poll(snapshot(chinese_card(level), metadata(identity("测试手机"))))
+                self.assertEqual(len(values), 1)
+                value = values[0]
+                self.assertEqual((value.key, value.name, value.level, value.online),
+                                 ("phone_link:" + ONE, "测试手机", level, True))
+                self.assertFalse(value.charging)
+                self.assertFalse(value.charging_known)
+
+    def test_simplified_chinese_explicit_charging_flag(self):
+        for level in (0, 72, 100):
+            with self.subTest(level=level):
+                values, _ = self.poll(snapshot(
+                    chinese_card(level, charging=True), metadata(identity("测试手机"))))
+                self.assertEqual(values[0].level, level)
+                self.assertTrue(values[0].charging)
+                self.assertTrue(values[0].charging_known)
+        value = chinese_card(72, charging=True)
+        value["body"][5]["columns"][6]["items"][0]["tooltip"] = "电池电量剩余 72%"
+        self.assertIsNone(self.poll(snapshot(value, metadata(identity("测试手机"))))[0][0].level)
+
+    def test_chinese_connection_text_requires_the_observed_complete_suffix(self):
+        for suffix in (" - 未连接到你的电脑", " - 已断开连接", " - 已连接",
+                       " - 已连接到你的电脑（旧状态）", " - 已连接到你的电脑 "):
+            with self.subTest(suffix=suffix):
+                value = chinese_card()
+                value["speak"] = "测试手机" + suffix
+                values, _ = self.poll(snapshot(value, metadata(identity("测试手机"))))
+                self.assertEqual(values, [])
+
+    def test_chinese_invalid_or_conflicting_battery_labels_are_unavailable(self):
+        invalid = ("电池电量剩余 -1%", "电池电量剩余 101%", "电池电量剩余 70.5%",
+                   "电池电量剩余 七十%", "电池电量剩余 ７０%", "电池电量剩余 70% 正在充电",
+                   "电池电量剩余 70% extra", " 电池电量剩余 70%", "", None)
+        for label in invalid:
+            with self.subTest(label=label):
+                value = chinese_card()
+                value["body"][5]["columns"][4]["items"][0]["tooltip"] = label
+                values, _ = self.poll(snapshot(value, metadata(identity("测试手机"))))
+                self.assertIsNone(values[0].level)
+                self.assertFalse(values[0].online)
+        value = chinese_card()
+        value["body"][5]["columns"][6]["items"][0]["tooltip"] = "电池电量剩余 71%"
+        self.assertIsNone(self.poll(snapshot(value, metadata(identity("测试手机"))))[0][0].level)
+
+    def test_chinese_notification_text_cannot_replace_a_missing_battery_reading(self):
+        value = chinese_card()
+        for index in (4, 6):
+            value["body"][5]["columns"][index]["items"][0]["tooltip"] = "电池状态不可用"
+        value["body"][6]["text"] = "PRIVATE-NOTIFICATION 电池电量剩余 99%"
+        values, provider = self.poll(snapshot(value, metadata(identity("测试手机"))))
+        self.assertIsNone(values[0].level)
+        self.assertNotIn("99", " ".join(provider.diagnostics()))
+        self.assertNotIn("PRIVATE", " ".join(provider.diagnostics()))
+
+    def test_language_change_preserves_the_selected_device_key(self):
+        for charging in (False, True):
+            with self.subTest(charging=charging):
+                current = [snapshot(card(70, name="测试手机", charging=charging),
+                                    metadata(identity("测试手机")))]
+                provider = P.PhoneLinkProvider(snapshot_reader=lambda: current[0], clock=lambda: NOW)
+                first = provider.poll()[0]
+                current[0] = snapshot(chinese_card(charging=charging), metadata(identity("测试手机")))
+                second = provider.poll()[0]
+                self.assertEqual((second.key, second.level, second.charging, second.charging_known),
+                                 (first.key, first.level, first.charging, first.charging_known))
+
+    def test_chinese_selection_still_requires_one_linked_mobile_identity(self):
+        for identities in (metadata(identity("Other")),
+                           metadata(identity("测试手机", linked=False)),
+                           metadata(identity("测试手机", os_name="Windows")),
+                           metadata(identity("测试手机"), identity("测试手机", TWO))):
+            with self.subTest(identities=identities):
+                values, _ = self.poll(snapshot(chinese_card(), identities))
+                self.assertEqual(values, [])
+
+    def test_chinese_cache_obeys_freshness_and_last_reported_rules(self):
+        for age, expected_level, online in ((300, 70, True), (301, 70, False),
+                                            (10801, None, False)):
+            with self.subTest(age=age):
+                values, _ = self.poll(snapshot(chinese_card(), metadata(identity("测试手机")),
+                                               modified=NOW-age))
+                self.assertEqual((values[0].level, values[0].online), (expected_level, online))
+        now = [NOW]
+        provider = P.PhoneLinkProvider(
+            snapshot_reader=lambda: snapshot(chinese_card(), metadata(identity("测试手机"))),
+            clock=lambda: now[0])
+        provider.poll()
+        now[0] += 4 * 3600
+        value = provider.poll()[0]
+        self.assertEqual(value.level, 70)
+        self.assertEqual(value.ui_message, "state.phone_link_last_reported")
+        self.assertFalse(value.charging_known)
+        values, _ = self.poll(snapshot(chinese_card(charging=True), metadata(identity("测试手机")),
+                                       modified=NOW-301))
+        self.assertEqual(values[0].level, 70)
+        self.assertFalse(values[0].charging)
+        self.assertFalse(values[0].charging_known)
 
     def test_expired_connected46_is_unknown_offline_identity_not_a_percentage(self):
         for modified in (NOW - P.INITIAL_CACHE_MAX_AGE - 1, NOW - 32 * 86400, NOW + 6):
@@ -226,6 +336,16 @@ class LocalReaderTests(unittest.TestCase):
         self.assertIsInstance(result, P.CacheSnapshot)
         self.assertEqual(P.battery_from_card(result.card), (46, None))
         self.assertEqual(P.selected_identity(result.card, result.metadata)[0], "phone_link:" + ONE)
+
+    def test_reader_accepts_utf8_chinese_companion_and_identity(self):
+        for relative, value in ((P.CARD_PATH, chinese_card()),
+                                (P.IDENTITY_PATH, metadata(identity("测试手机")))):
+            (self.root / relative).write_text(
+                json.dumps(value, ensure_ascii=False), encoding="utf-8-sig")
+        result = P._read_snapshot(self.root)
+        self.assertEqual(P.battery_from_card(result.card), (70, None))
+        self.assertEqual(P.selected_identity(result.card, result.metadata),
+                         ("phone_link:" + ONE, "测试手机"))
 
     def test_missing_file_is_an_ordinary_unavailable_snapshot(self):
         (self.root / P.CARD_PATH).unlink()

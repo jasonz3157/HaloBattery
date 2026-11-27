@@ -239,8 +239,10 @@ reading. This is an admission policy, not a measurement or heartbeat guarantee.
 Missing/unsupported cache or ambiguous identity clears admission. HaloBattery
 will not launch Phone Link or change device settings.
 
-The initial card parser recognizes the observed English status format even
-when HaloBattery uses another UI language. Other card formats are refused.
+The card parser recognizes the observed English and Simplified Chinese status
+formats independently of HaloBattery's UI language. The Chinese profile accepts
+the connected header, remaining-percentage labels and explicit charging suffix
+observed in the Windows cache. Other card formats are refused.
 Unknown charger state is shown as unknown and cannot trigger battery alerts or
 use-time estimates. See [source and verification limits](protocols.md#phone-link-selected-cache).
 
