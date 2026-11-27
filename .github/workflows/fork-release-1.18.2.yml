@@ -1,0 +1,155 @@
+name: Publish fork v1.18.2
+on:
+  push:
+    branches: [release/publish-v1.18.2]
+    paths: [.github/workflows/fork-release-1.18.2.yml]
+permissions:
+  contents: read
+concurrency:
+  group: fork-release-v1.18.2
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: jasonz3157/HaloBattery
+      SOURCE_SHA: b58ea5c810e6830f3646b84b73d23d5ad211c920
+      CI_RUN_ID: '45936925379'
+      CI_HEAD_SHA: aaa79d845e511d0b52b46984021934bf7bb41517
+      ARTIFACT_NAME: HaloBattery-check-0a25c2902b65fa93c94d58547ba7cb4f6f7daa7e
+    steps:
+      - name: Check out the exact release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify tested source and download build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", path], text=True))
+
+          repo = os.environ["GH_REPO"]
+          run = api(f"repos/{repo}/actions/runs/{os.environ['CI_RUN_ID']}")
+          assert run["status"] == "completed" and run["conclusion"] == "success", run
+          assert run["event"] == "pull_request"
+          assert run["head_sha"] == os.environ["CI_HEAD_SHA"]
+          assert run["head_branch"] == "hotfix/release-1.18.2"
+          assert run["path"] == ".github/workflows/tests.yml"
+          assert run["repository"]["full_name"] == repo
+          jobs = api(f"repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
+          required = {"lint", "branch-policy", "compatibility (3.13.17)", "compatibility (3.14.10)", "tests"}
+          assert required <= {j["name"] for j in jobs}, jobs
+          assert all(j["status"] == "completed" and j["conclusion"] == "success" for j in jobs if j["name"] in required)
+          artifact = os.environ["ARTIFACT_NAME"]
+          build_sha = re.fullmatch(r"HaloBattery-check-([0-9a-f]{40})", artifact).group(1)
+          source = api(f"repos/{repo}/git/commits/{os.environ['SOURCE_SHA']}")
+          built = api(f"repos/{repo}/git/commits/{build_sha}")
+          assert source["tree"]["sha"] == built["tree"]["sha"], "Build source does not match release source"
+          assert api(f"repos/{repo}/git/ref/heads/main")["object"]["sha"] == os.environ["SOURCE_SHA"]
+          assert re.search(r'^VERSION = "1\.18\.2"$', Path("halo_battery.pyw").read_text(encoding="utf-8"), re.M)
+          print("All required checks passed; build tree matches release tree.")
+          PY
+          gh run download "$CI_RUN_ID" --repo "$GH_REPO" --name "$ARTIFACT_NAME" --dir build-files
+      - name: Prepare release assets and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, shutil, zipfile
+          from pathlib import Path
+
+          app = Path("build-files/HaloBattery")
+          installer = Path("build-files/HaloBattery-1.18.2-setup.exe")
+          for path in (app / "HaloBattery.exe", app / "_internal/settings-ui/HaloBattery.Settings.exe", installer):
+              assert path.is_file() and path.stat().st_size > 0, path
+          metadata = json.loads((app / "_internal/halo/build-info.json").read_text(encoding="utf-8"))
+          assert metadata == {"schema": 1, "channel": "stable", "version": "1.18.2"}, metadata
+          out = Path("release-assets")
+          out.mkdir()
+          shutil.copy2(installer, out / installer.name)
+          with zipfile.ZipFile(out / "HaloBattery-1.18.2.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+              for path in sorted(app.rglob("*")):
+                  assert not path.is_symlink(), path
+                  if path.is_file():
+                      archive.write(path, path.relative_to(app.parent).as_posix())
+          checksums = []
+          for path in sorted(out.iterdir()):
+              checksums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n")
+          (out / "SHA256SUMS.txt").write_text("".join(checksums), encoding="utf-8")
+          expected = {p.name: {"size": p.stat().st_size, "digest": "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()} for p in out.iterdir()}
+          Path("expected-assets.json").write_text(json.dumps(expected), encoding="utf-8")
+          notes = """## Changes
+          - Show only the phone name and battery percentage when Phone Link does not report charging. Confirmed charging still appears in the tooltip.
+          - Preserve the fork's sleeping-device display: only the center device icon turns gray; the battery ring keeps its last value and color.
+
+          ## Downloads
+          - HaloBattery-1.18.2-setup.exe: per-user Windows installer.
+          - HaloBattery-1.18.2.zip: portable Windows build.
+          - SHA256SUMS.txt: SHA-256 checksums.
+
+          This fork build is unsigned. All required Windows CI checks passed, and the release build matches the tagged source tree.
+          """
+          import textwrap
+          Path("release-notes.md").write_text(textwrap.dedent(notes), encoding="utf-8")
+          PY
+      - name: Create version tag and draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/v1.18.2 -f sha="$SOURCE_SHA" > created-tag.json
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {"tag_name": "v1.18.2", "target_commitish": os.environ["SOURCE_SHA"], "name": "v1.18.2", "body": Path("release-notes.md").read_text(encoding="utf-8"), "draft": True, "prerelease": False}
+          Path("release-payload.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+          gh api --method POST "repos/$GH_REPO/releases" --input release-payload.json > created-release.json
+          gh release upload v1.18.2 release-assets/HaloBattery-1.18.2-setup.exe release-assets/HaloBattery-1.18.2.zip release-assets/SHA256SUMS.txt --repo "$GH_REPO"
+      - name: Verify uploads before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download v1.18.2 --repo "$GH_REPO" --dir verify-download
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess, zipfile
+          from pathlib import Path
+          repo = os.environ["GH_REPO"]
+          created = json.loads(Path("created-release.json").read_text(encoding="utf-8"))
+          release_id = created["id"]
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", path], text=True))
+          release = api(f"repos/{repo}/releases/{release_id}")
+          assert release["tag_name"] == "v1.18.2" and release["draft"] and not release["prerelease"]
+          assert api(f"repos/{repo}/git/ref/tags/v1.18.2")["object"]["sha"] == os.environ["SOURCE_SHA"]
+          expected = json.loads(Path("expected-assets.json").read_text(encoding="utf-8"))
+          assets = {a["name"]: a for a in release["assets"]}
+          assert assets.keys() == expected.keys(), assets
+          for name, info in expected.items():
+              assert assets[name]["state"] == "uploaded"
+              assert assets[name]["size"] == info["size"] and assets[name]["digest"] == info["digest"]
+              downloaded = Path("verify-download") / name
+              assert downloaded.stat().st_size == info["size"]
+              assert "sha256:" + hashlib.sha256(downloaded.read_bytes()).hexdigest() == info["digest"]
+          for line in Path("verify-download/SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
+              digest, name = line.split("  ", 1)
+              assert hashlib.sha256((Path("verify-download") / name).read_bytes()).hexdigest() == digest
+          with zipfile.ZipFile("verify-download/HaloBattery-1.18.2.zip") as archive:
+              assert archive.testzip() is None
+              assert json.loads(archive.read("HaloBattery/_internal/halo/build-info.json")) == {"schema": 1, "channel": "stable", "version": "1.18.2"}
+          print("Uploaded installer, portable archive and checksums verified.")
+          subprocess.run(["gh", "api", "--method", "PATCH", f"repos/{repo}/releases/{release_id}", "-F", "draft=false", "-f", "make_latest=true"], check=True, stdout=subprocess.DEVNULL)
+          final = api(f"repos/{repo}/releases/latest")
+          assert final["id"] == release_id and not final["draft"] and not final["prerelease"]
+          print(final["html_url"])
+          PY
