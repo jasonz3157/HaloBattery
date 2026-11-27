@@ -56,9 +56,25 @@ jobs:
                       or run["head_repository"]["full_name"] != os.environ["GH_REPO"]):
                   raise SystemExit("CI source does not match the approved release commit")
               if run["status"] == "completed":
-                  if run["conclusion"] != "success":
+                  if run["conclusion"] not in ("success", "cancelled"):
                       raise SystemExit("Release CI did not succeed")
-                  print("Exact main commit passed compatibility, lint, tests, startup and packaging checks")
+                  jobs_url = url + "/jobs?per_page=100"
+                  with urllib.request.urlopen(urllib.request.Request(jobs_url, headers=headers), timeout=30) as response:
+                      jobs = json.load(response)
+                  if jobs["total_count"] > 100:
+                      raise SystemExit("Unexpected number of CI jobs")
+                  required = {"lint", "tests", "compatibility (3.13.17)", "compatibility (3.14.10)"}
+                  actual = {job["name"]: job for job in jobs["jobs"]}
+                  if not required.issubset(actual):
+                      raise SystemExit("Required CI jobs are missing")
+                  if any(actual[name]["status"] != "completed" or actual[name]["conclusion"] != "success"
+                         for name in required):
+                      raise SystemExit("A required CI job did not succeed")
+                  if any(job["name"] not in required and
+                         not (job["name"] == "branch-policy" and job["conclusion"] == "skipped")
+                         for job in jobs["jobs"]):
+                      raise SystemExit("Unexpected CI job result")
+                  print("Exact main commit passed every required compatibility, lint, test and packaging job")
                   break
               print("Waiting for release CI", run["status"], flush=True)
               time.sleep(15)
