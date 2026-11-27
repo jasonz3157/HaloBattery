@@ -187,8 +187,8 @@ Only the selected companion device has a battery value in this cache. A previous
 accepted value remains visible as **last reported** if the file stops changing,
 with connectivity and charging unconfirmed. A cold-start cache older than three
 hours cannot seed a percentage. Unknown layouts/languages, ambiguous identity or
-missing files are unavailable; the initial parser recognizes the observed English
-format only.
+missing files are unavailable. The parser recognizes the observed English and
+Simplified Chinese connected-header, battery-percentage and explicit-charging formats.
 
 An earlier local Desktop build with this reader was checked on an S24+ over Wi-Fi
 with phone Bluetooth disabled: the percentage and phone glyph were confirmed in

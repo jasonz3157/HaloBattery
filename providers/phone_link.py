@@ -5,6 +5,8 @@ PaulBayfield/devices.bayfield.dev, revision 4cd6e3c4fc3b7d61837e60b933318e51b620
 agent/src/devices/phonelink/__init__.py:47-111; krisgfx9/Wireless-Device-Battery-Monitor,
 revision bbc203045b185ce3f0b1fe66597830515822e849, src/drivers/phonelink.cpp:79-109.
 The observed 1.26092.119.0 header/status-row shape is checked explicitly below.
+Simplified Chinese header and percentage labels were observed in the owner's
+Windows 11 companion cache on 2026-11-27, including its explicit charging label.
 Identity uses the per-entry Metadata.Id, not the shared outer metadata group.
 
 This is an undocumented, localized Windows 11 cache, not a real-time API. Even
@@ -38,8 +40,10 @@ INITIAL_CACHE_MAX_AGE = 3 * 3600.0
 CLOCK_TOLERANCE = 5.0
 CARD_PATH = Path("LocalState", "StartMenu", "StartMenuCompanion.json")
 IDENTITY_PATH = Path("LocalCache", "DeviceMetadataStorage.json")
-_CONNECTED_SUFFIX = " - Connected to your PC"
-_BATTERY = re.compile(r"Battery ([0-9]{1,3})% remaining(, charging)?")
+_CONNECTION = re.compile(r"(.+) - (?:Connected to your PC|已连接到你的电脑)")
+_BATTERY = re.compile(
+    r"(?:Battery (?P<english>[0-9]{1,3})% remaining(?P<english_charging>, charging)?"
+    r"|电池电量剩余 (?P<chinese>[0-9]{1,3})%(?P<chinese_charging>，正在充电)?)")
 _MESSAGES = {
     "stale": ("state.phone_link_stale", "Phone Link status is out of date; open Phone Link to refresh"),
     "unavailable": ("state.phone_link_unavailable", "Phone Link battery status unavailable"),
@@ -151,9 +155,12 @@ def selected_identity(card, metadata):
     if not isinstance(card, dict) or card.get("type") != "AdaptiveCard":
         return None
     speak = card.get("speak")
-    if not _text(speak, 320) or not speak.endswith(_CONNECTED_SUFFIX):
+    if not _text(speak, 320):
         return None
-    name = speak[:-len(_CONNECTED_SUFFIX)]
+    match = _CONNECTION.fullmatch(speak)
+    if match is None:
+        return None
+    name = match[1]
     if not _text(name):
         return None
     groups = metadata.get("DeviceMetadatas") if isinstance(metadata, dict) else None
@@ -214,11 +221,15 @@ def battery_from_card(card):
             if not _text(label, 100):
                 return None
             match = _BATTERY.fullmatch(label)
-            if match is None or int(match[1]) > 100:
+            if match is None:
                 return None
-            # Bare "remaining" proves percentage, not charger state. Only
-            # explicitly reported charging is known by this initial profile.
-            readings.append((int(match[1]), True if match[2] else None))
+            level = int(match["english"] or match["chinese"])
+            if level > 100:
+                return None
+            # A remaining-percent label proves the level only. Only the
+            # observed explicit charging suffix makes charger state known.
+            charging = bool(match["english_charging"] or match["chinese_charging"])
+            readings.append((level, True if charging else None))
         return readings[0] if readings[0] == readings[1] else None
     except (KeyError, IndexError, TypeError):
         return None
