@@ -45,7 +45,7 @@ APP_NAME = "HaloBattery"
 # caches the initial tooltip; do not reuse the unbranded prototype's label.
 TRAY_APP_TIP = "HaloBattery - wireless device batteries"
 APP_TITLE = "Halo Battery"
-VERSION = "1.18.1"
+VERSION = "1.18.2"
 PRETEND_VERSION = ""             # --pretend-version 1.0.0: test the updater with a built copy
 LEGACY_NAME = "BatteryTray"      # the app's previous name (settings and autostart are migrated)
 
@@ -1332,7 +1332,8 @@ def device_state(st: DeviceStatus, left: str = "", *, language: str = "en") -> s
         state = i18n.translate("state.level", language=language, level=st.level)
         if st.charging:
             state = i18n.translate("state.charging", language=language, state=state)
-        elif not st.charging_known:
+        # A Phone Link cache without an explicit charging flag shows only the level.
+        elif not st.charging_known and st.source != "phone_link":
             state = i18n.translate("state.charging_unknown", language=language, state=state)
         if not st.online:
             state = i18n.translate("state.asleep", language=language, state=state)

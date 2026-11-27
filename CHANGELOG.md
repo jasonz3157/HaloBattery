@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.18.2] - 2026-11-27
+
+### Fixed
+
+- Show just the Phone Link battery percentage when the cache does not report charging.
+
 ## [1.18.1] - 2026-11-27
 
 ### Fixed
@@ -1908,7 +1914,8 @@ First public release.
   in or unplugged.
 - Settings and the autostart entry are migrated from the app's earlier name, Battery Tray.
 
-[Unreleased]: ../../compare/v1.18.1...HEAD
+[Unreleased]: ../../compare/v1.18.2...HEAD
+[1.18.2]: ../../compare/v1.18.1...v1.18.2
 [1.18.1]: ../../compare/v1.18.0...v1.18.1
 [1.18.0]: ../../compare/v1.17.0...v1.18.0
 [1.17.1]: ../../compare/v1.17.0...v1.17.1
