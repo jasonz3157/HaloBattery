@@ -45,7 +45,7 @@ APP_NAME = "HaloBattery"
 # caches the initial tooltip; do not reuse the unbranded prototype's label.
 TRAY_APP_TIP = "HaloBattery - wireless device batteries"
 APP_TITLE = "Halo Battery"
-VERSION = "1.18.0"
+VERSION = "1.18.1"
 PRETEND_VERSION = ""             # --pretend-version 1.0.0: test the updater with a built copy
 LEGACY_NAME = "BatteryTray"      # the app's previous name (settings and autostart are migrated)
 
